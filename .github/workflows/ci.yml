@@ -1,0 +1,36 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  
+  quality_check:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm' 
+      - run: npm ci
+      - name: Check formatting
+        run: npm run format:check 
+      - name: Check linting
+        run: npm run lint -- --max-warnings=0
+      - name: Type check
+        run: npx tsc --noEmit 
+
+ 
+  build:
+    name: Build Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run build 
