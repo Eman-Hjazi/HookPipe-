@@ -1,6 +1,6 @@
 # HookPipe 🚀
 
-![CI Status](https://github.com/Eman-Hjazi/HookPipe/actions/workflows/ci.yml/badge.svg)
+![CI Status](https://github.com/Eman-Hjazi/HookPipe-/actions/workflows/ci.yml/badge.svg)
 
 **HookPipe** is a robust, webhook-driven task processing pipeline. It is designed to ingest inbound events, queue them for background processing, and deliver results to subscribers with built-in reliability.
 
