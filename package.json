@@ -5,16 +5,18 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "tsx src/index.ts",
-    "dev": "tsx --watch src/index.ts",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc",
+    "start:api": "node dist/api/index.js",
+    "start:worker": "node dist/worker/index.js",
+    "dev:api": "tsx --watch src/api/index.ts",
+    "dev:worker": "tsx --watch src/worker/index.ts",
     "generate": "drizzle-kit generate",
     "migrate": "drizzle-kit migrate",
     "format:write": "prettier --write \"src/**/*.{js,ts,json,css,md}\"",
     "format:check": "prettier --check \"src/**/*.{js,ts,json,css,md}\"",
-    "lint": "eslint . --max-warnings=0"
-
-  },
+    "lint": "eslint . --max-warnings=0",
+    "test": "vitest run"
+},
   "keywords": [],
   "author": "",
   "license": "ISC",

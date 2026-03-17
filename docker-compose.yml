@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: hookpipe-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-eman_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eman_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-hookpipe_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-eman_admin} -d ${POSTGRES_DB:-hookpipe_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  
+  api:
+    build: .
+    container_name: hookpipe-api
+    ports:
+      - "3000:3000"
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+
+ 
+  worker:
+    build: .
+    container_name: hookpipe-worker
+    command: npm run start:worker
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
