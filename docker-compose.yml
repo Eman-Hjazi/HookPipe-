@@ -3,6 +3,8 @@ services:
     image: postgres:16-alpine
     container_name: hookpipe-db
     restart: always
+    ports:
+      - "5433:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-eman_admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eman_pass}
