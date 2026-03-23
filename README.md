@@ -26,6 +26,17 @@ src/
 ├── shared/   # Common types, utilities, and configuration
 ```
 
+## 🔌 API Documentation
+The API runs on `http://localhost:3000` by default.
+
+### Pipelines
+*   **Create Pipeline** (`POST /api/pipelines`)
+    *   **Payload:** `{ "name": "string", "actionType": "transform|filter|enrich", "actionConfig": {}, "subscriberUrls": [] }` .
+*   **Get Pipeline** (`GET /api/pipelines/{sourcePath}`)
+    *   **Description:** Retrieves pipeline details using its unique source path .
+*   **Update Pipeline** (`PATCH /api/pipelines/{id}`)
+    *   **Description:** Updates the name or action type of an existing pipeline .
+
 ## 🛠️ Tech Stack
 *   **Language:** TypeScript (Strict Typing).
 *   **Infrastructure:** Docker & Docker Compose.
@@ -34,9 +45,11 @@ src/
 ## 🚀 Roadmap & Progress
 - [x] **Initial Setup:** Project initialization with TypeScript and base configuration.
 - [x] **Infrastructure:** Dockerizing services and setting up PostgreSQL for a "works on first try" setup.
-- [x] **CI/CD Pipeline:** Configured GitHub Actions to ensure a "Passing CI pipeline".
-- [ ] **Core Logic:** Implementing Webhook ingestion and background workers.
-- [ ] **Reliability Features:** Implementing Retry Logic and job status tracking.
+- [x] **CI/CD Pipeline:** GitHub Actions configured for automated linting and type-checking.
+- [x] **Pipeline Management (CRUD):** Full API for creating, updating, and managing pipelines.
+- [ ] **Core Logic - Ingestion:** Unique source URLs and background job queuing .
+- [ ] **Core Logic - Worker:** Processing engine with Transform, Filter, and Enrich actions .
+- [ ] **Reliability:** Implementation of Retry Logic and delivery attempt tracking.
 
 ## ⚙️ Getting Started
 
