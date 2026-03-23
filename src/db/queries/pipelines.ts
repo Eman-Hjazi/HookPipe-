@@ -1,11 +1,13 @@
 import { db } from "../index.js";
 import { pipelines, subscribers } from "../schema.js";
 import { nanoid } from "nanoid";
+
 import { eq, and, inArray } from "drizzle-orm";
 import {
   CreatePipelineInput,
   UpdatePipelineInput,
 } from "../../api/validations/pipeline.schema.js";
+
 
 /**
  * Creates a new pipeline with its subscribers.
