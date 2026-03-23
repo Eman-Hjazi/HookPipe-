@@ -1,6 +1,6 @@
 CREATE TYPE "public"."action_type" AS ENUM('transform', 'filter', 'enrich');--> statement-breakpoint
 CREATE TYPE "public"."delivery_status" AS ENUM('pending', 'success', 'failed', 'retrying');--> statement-breakpoint
-CREATE TYPE "public"."job_status" AS ENUM('pending', 'processing', 'completed', 'failed');--> statement-breakpoint
+CREATE TYPE "public"."job_status" AS ENUM('queued', 'processing', 'completed', 'failed', 'retrying');--> statement-breakpoint
 CREATE TABLE "delivery_attempts" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"job_id" uuid,
@@ -17,7 +17,7 @@ CREATE TABLE "delivery_attempts" (
 CREATE TABLE "jobs" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"pipeline_id" uuid,
-	"status" "job_status" DEFAULT 'pending' NOT NULL,
+	"status" "job_status" DEFAULT 'queued' NOT NULL,
 	"payload" jsonb NOT NULL,
 	"processed_data" jsonb,
 	"error_message" text,
