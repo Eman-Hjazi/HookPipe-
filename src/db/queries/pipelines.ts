@@ -1,42 +1,30 @@
 import { db } from "../index.js";
 import { pipelines, subscribers } from "../schema.js";
 import { nanoid } from "nanoid";
-import { eq } from "drizzle-orm";
-
-// Defining the input structure for better Type Safety
-export interface CreatePipelineInput {
-  name: string;
-  actionType: "transform" | "filter" | "enrich";
-  actionConfig: Record<string, unknown>;
-  subscriberUrls: string[];
-}
+import { eq, and, inArray } from "drizzle-orm";
+import {
+  CreatePipelineInput,
+  UpdatePipelineInput,
+} from "../../api/validations/pipeline.schema.js";
 
 /**
  * Creates a new pipeline with its subscribers.
  * Requirement: A pipeline must connect a source, an action, and one or more subscribers.
  */
-export const createPipeline = async (data: CreatePipelineInput) => {
-  // Validation: Ensure at least one subscriber is provided
-  if (!data.subscriberUrls || data.subscriberUrls.length === 0) {
-    throw new Error(
-      "Validation Error: At least one subscriber URL is required to create a pipeline.",
-    );
-  }
+// src/db/queries/pipelines.ts
 
+export const createPipeline = async (data: CreatePipelineInput) => {
   return await db.transaction(async (tx) => {
-    // 1. Insert the main pipeline record
     const [newPipeline] = await tx
       .insert(pipelines)
       .values({
         name: data.name,
-        sourcePath: nanoid(12), // Generates the "Unique URL" required by the specs
+        sourcePath: nanoid(12),
         actionType: data.actionType,
         actionConfig: data.actionConfig ?? {},
-        isActive: true, // Added for "Creativity & Polish" - allows toggling the pipeline
       })
       .returning();
 
-    // 2. Map and insert subscriber URLs
     const subscriberRecords = data.subscriberUrls.map((url) => ({
       pipelineId: newPipeline.id,
       url: url,
@@ -47,10 +35,7 @@ export const createPipeline = async (data: CreatePipelineInput) => {
       .values(subscriberRecords)
       .returning();
 
-    return {
-      ...newPipeline,
-      subscribers: insertedSubscribers,
-    };
+    return { ...newPipeline, subscribers: insertedSubscribers };
   });
 };
 
@@ -84,19 +69,8 @@ export const getPipelineByPath = async (
  * Updates an existing pipeline and its subscribers.
  * Includes edge-case handling for empty subscriber lists.
  */
-export const updatePipeline = async (
-  id: string,
-  data: Partial<CreatePipelineInput> & { isActive?: boolean },
-) => {
-  // Edge Case: Prevent clearing all subscribers during update
-  if (data.subscriberUrls && data.subscriberUrls.length === 0) {
-    throw new Error(
-      "Update Error: A pipeline must have at least one subscriber destination.",
-    );
-  }
-
+export const updatePipeline = async (id: string, data: UpdatePipelineInput) => {
   return await db.transaction(async (tx) => {
-    // 1. Update pipeline core fields
     await tx
       .update(pipelines)
       .set({
@@ -108,20 +82,40 @@ export const updatePipeline = async (
       })
       .where(eq(pipelines.id, id));
 
-    // 2. Sync subscribers if a new list is provided
     if (data.subscriberUrls) {
-      // Remove old subscribers and insert new ones (Sync Strategy)
-      await tx.delete(subscribers).where(eq(subscribers.pipelineId, id));
+      const currentSubscribers = await tx
+        .select()
+        .from(subscribers)
+        .where(eq(subscribers.pipelineId, id));
 
-      const subscriberRecords = data.subscriberUrls.map((url) => ({
-        pipelineId: id,
-        url: url,
-      }));
+      const currentUrls = currentSubscribers.map((s) => s.url);
 
-      await tx.insert(subscribers).values(subscriberRecords);
+      const urlsToDelete = currentUrls.filter(
+        (url) => !data.subscriberUrls!.includes(url),
+      );
+      const urlsToInsert = data.subscriberUrls.filter(
+        (url) => !currentUrls.includes(url),
+      );
+      if (urlsToDelete.length > 0) {
+        await tx
+          .delete(subscribers)
+          .where(
+            and(
+              eq(subscribers.pipelineId, id),
+              inArray(subscribers.url, urlsToDelete),
+            ),
+          );
+      }
+      if (urlsToInsert.length > 0) {
+        const newRecords = urlsToInsert.map((url) => ({
+          pipelineId: id,
+          url: url,
+        }));
+        await tx.insert(subscribers).values(newRecords);
+      }
     }
 
-    return { message: "Pipeline updated successfully" };
+    return { message: "Pipeline updated successfully using Smart Sync" };
   });
 };
 

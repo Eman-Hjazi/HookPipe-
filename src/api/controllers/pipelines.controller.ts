@@ -1,110 +1,80 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import * as pipelineQueries from "../../db/queries/pipelines.js";
-import { CreatePipelineInput } from "../../db/queries/pipelines.js";
+import {
+  CreatePipelineInput,
+  UpdatePipelineInput,
+} from "../validations/pipeline.schema.js";
 
-export const create = async (req: Request, res: Response) => {
+export const create = async (
+  req: Request<
+    Record<string, never>,
+    Record<string, never>,
+    CreatePipelineInput
+  >,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
-    const data: Partial<CreatePipelineInput> = req.body;
-
-    // validate the essential fields
-    if (!data.name || !data.actionType || !data.subscriberUrls) {
-      return res.status(400).json({
-        error: "Missing required fields: name, actionType, or subscriberUrls",
-      });
-    }
-
-    if (
-      !Array.isArray(data.subscriberUrls) ||
-      data.subscriberUrls.length === 0
-    ) {
-      return res
-        .status(400)
-        .json({ error: "subscriberUrls must be a non-empty array of URLs" });
-    }
-
-    const validActions = ["transform", "filter", "enrich"];
-    if (!validActions.includes(data.actionType as string)) {
-      return res.status(400).json({
-        error: `Invalid actionType. Must be one of: ${validActions.join(", ")}`,
-      });
-    }
-
-    const createInput: CreatePipelineInput = {
-      name: data.name as string,
-      actionType: data.actionType as "transform" | "filter" | "enrich",
-      actionConfig: data.actionConfig ?? {},
-      subscriberUrls: data.subscriberUrls as string[],
-    };
-
-    const newPipeline = await pipelineQueries.createPipeline(createInput);
+    const newPipeline = await pipelineQueries.createPipeline(req.body);
     return res.status(201).json(newPipeline);
-  } catch (err: unknown) {
-    const error = err instanceof Error ? err : new Error(String(err));
-    console.error("[Pipeline Create Error]", error);
-
-    if (error?.message?.includes("duplicate key value")) {
-      return res
-        .status(409)
-        .json({ error: "Pipeline sourcePath collision, retry request" });
-    }
-
-    return res
-      .status(500)
-      .json({ error: error?.message || "Internal Server Error" });
+  } catch (err) {
+    next(err);
   }
 };
 
-
-export const list = async (_req: Request, res: Response) => {
+export const list = async (
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const allPipelines = await pipelineQueries.getAllPipelines();
     return res.status(200).json(allPipelines);
-  } catch {
-    return res.status(500).json({ error: "Internal Server Error" });
+  } catch (err) {
+    next(err);
   }
 };
 
+export const update = async (
+  req: Request<{ id: string }, Record<string, never>, UpdatePipelineInput>,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { id } = req.params;
+    const result = await pipelineQueries.updatePipeline(id, req.body);
+    return res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
 
 export const getOne = async (
   req: Request<{ sourcePath: string }>,
   res: Response,
+  next: NextFunction,
 ) => {
   try {
-    const { sourcePath } = req.params;
     const pipeline = await pipelineQueries.getPipelineByPath(
-      sourcePath as string,
+      req.params.sourcePath,
       true,
     );
-
-    if (!pipeline) {
-      return res.status(404).json({ error: "Pipeline not found" });
-    }
-
+    if (!pipeline) throw new Error("Pipeline not found");
     return res.status(200).json(pipeline);
-  } catch {
-    return res.status(500).json({ error: "Internal Server Error" });
+  } catch (err) {
+    next(err);
   }
 };
 
-
-export const update = async (req: Request, res: Response) => {
+export const remove = async (
+  req: Request<{ id: string }>,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
-    const { id } = req.params;
-    const result = await pipelineQueries.updatePipeline(id as string, req.body);
+    const result = await pipelineQueries.deletePipeline(req.params.id);
     return res.status(200).json(result);
-  } catch (err: unknown) {
-    const error = err instanceof Error ? err : new Error(String(err));
-    return res.status(400).json({ error: error.message });
-  }
-};
-
-export const remove = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const result = await pipelineQueries.deletePipeline(id as string);
-    return res.status(200).json(result);
-  } catch (err: unknown) {
-    const error = err instanceof Error ? err : new Error(String(err));
-    return res.status(404).json({ error: error.message });
+  } catch (err) {
+    next(err);
   }
 };
