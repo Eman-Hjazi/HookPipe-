@@ -8,6 +8,13 @@
       "when": 1774169733196,
       "tag": "0000_open_norrin_radd",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1774288027889,
+      "tag": "0001_bitter_nightshade",
+      "breakpoints": true
     }
   ]
 }

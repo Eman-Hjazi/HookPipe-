@@ -17,6 +17,12 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:alpine
+    container_name: hookpipe_redis
+    ports:
+      - "6379:6379"
+    restart: always
   
   api:
     build: .
@@ -27,6 +33,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
 
  
   worker:
@@ -37,6 +45,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
+
+
 
 volumes:
   postgres_data:
