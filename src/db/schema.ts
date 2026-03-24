@@ -60,9 +60,11 @@ export const jobs = pgTable(
   "jobs",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    pipelineId: uuid("pipeline_id").references(() => pipelines.id, {
-      onDelete: "cascade",
-    }),
+    pipelineId: uuid("pipeline_id")
+      .references(() => pipelines.id, {
+        onDelete: "cascade",
+      })
+      .notNull(),
     status: jobStatusEnum("status").notNull().default("queued"),
     payload: jsonb("payload").notNull(),
     processedData: jsonb("processed_data"),
