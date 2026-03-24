@@ -17,6 +17,27 @@ To ensure **Reliability** and **Separation of Concerns**, the project is structu
 * **Message Queue (Redis):** Orchestrates communication between API and Worker using BullMQ.
 * **Database (PostgreSQL):** Stores pipeline configurations and job execution history.
 
+## 📂 Project Structure
+A strictly typed, modular directory structure designed for maximum maintainability:
+
+```text
+src/
+├── api/             # Webhook ingestion & Pipeline management
+│   ├── controllers/ # Request handlers (Business logic)
+│   ├── routes/      # Endpoint definitions
+│   ├── middlewares/ # Validation, Error handling & Auth guards
+│   └── validations/ # Zod schemas for request integrity
+├── db/              # Persistence layer
+│   ├── migrations/  # Drizzle SQL migration history
+│   ├── queries/     # Database Access Objects (DAO/Repository)
+│   └── schema.ts    # Single source of truth for DB tables
+├── worker/          # Background processing service
+│   ├── processors/  # Logic for Transform, Filter, and Enrich actions
+│   └── index.ts     # Worker initialization and BullMQ handlers
+├── shared/          # Cross-cutting concerns
+│   ├── queue.ts     # Redis connection & Queue shared instances
+```
+
 ## 🔌 API Documentation
 
 ### Webhook Ingestion
