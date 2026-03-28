@@ -6,16 +6,27 @@ services:
     ports:
       - "5433:5432"
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-eman_admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eman_pass}
-      POSTGRES_DB: ${POSTGRES_DB:-hookpipe_db}
+      POSTGRES_USER: ${POSTGRES_USER:-hookpipe_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hookpipe_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-hookpipe_database}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-eman_admin} -d ${POSTGRES_DB:-hookpipe_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hookpipe_admin} -d ${POSTGRES_DB:-hookpipe_database}"]
       interval: 5s
       timeout: 5s
       retries: 5
+
+  db-studio:
+    build: .
+    container_name: hookpipe-studio
+    command: npx drizzle-kit studio --port 4983 --host 0.0.0.0
+    ports:
+      - "4983:4983"
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
 
   redis:
     image: redis:alpine
@@ -36,7 +47,6 @@ services:
       redis:
         condition: service_started
 
- 
   worker:
     build: .
     container_name: hookpipe-worker
@@ -47,8 +57,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
-
-
 
 volumes:
   postgres_data:
