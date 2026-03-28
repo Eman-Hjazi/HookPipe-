@@ -7,7 +7,6 @@ import jobsRouter from "./routes/jobs.js";
 const PORT = process.env.PORT || 3000;
 const app = express();
 
-
 app.use(express.json({ limit: "1mb" }));
 app.use("/api/ingest", ingestionRoutes);
 app.use("/api/pipelines", pipelinesRouter);

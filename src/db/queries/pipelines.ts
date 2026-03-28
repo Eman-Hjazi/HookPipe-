@@ -13,8 +13,6 @@ import {
   PipelineWithSubscribers,
 } from "../../shared/types.js";
 
-
-
 export const createPipeline = async (data: CreatePipelineInput) => {
   return await db.transaction(async (tx) => {
     const [newPipeline] = await tx
@@ -41,7 +39,6 @@ export const createPipeline = async (data: CreatePipelineInput) => {
   });
 };
 
-
 export const getAllPipelines = async () => {
   return await db.query.pipelines.findMany({
     with: {
@@ -49,7 +46,6 @@ export const getAllPipelines = async () => {
     },
   });
 };
-
 
 export const getPipelineByPath = async (
   sourcePath: string,

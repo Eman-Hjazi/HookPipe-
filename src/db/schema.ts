@@ -15,7 +15,8 @@ import { InferSelectModel } from "drizzle-orm";
 
 export type Pipeline = InferSelectModel<typeof pipelines>;
 export type Subscriber = InferSelectModel<typeof subscribers>;
-
+export type DeliveryAttempt = InferSelectModel<typeof deliveryAttempts>;
+export type Job = InferSelectModel<typeof jobs>;
 export type PipelineWithSubscribers = typeof pipelines.$inferSelect & {
   subscribers: (typeof subscribers.$inferSelect)[];
 };

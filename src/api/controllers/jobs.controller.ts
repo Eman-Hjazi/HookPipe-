@@ -28,12 +28,11 @@ export const getJobStatus = async (
   res: Response<JobStatusResponse>,
   next: NextFunction,
 ): Promise<void> => {
-
   try {
     const job = await JobQueries.getJobById(req.params.id);
     if (!job) {
       res.status(404).json({ success: false, message: "Job not found" });
-      return; 
+      return;
     }
 
     res.status(200).json({

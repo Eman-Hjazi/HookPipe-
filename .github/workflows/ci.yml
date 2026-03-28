@@ -5,9 +5,8 @@ on:
     branches: [main]
 
 jobs:
-  
   quality_check:
-    name: Lint & Type Check
+    name: Lint, Type Check & Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,9 +22,12 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit 
 
- 
+      - name: Run Unit Tests
+        run: npm test
+
   build:
     name: Build Check
+    needs: quality_check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,4 +35,5 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
-      - run: npm run build 
+      - name: Build project
+        run: npm run build 

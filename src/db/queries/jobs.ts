@@ -52,7 +52,6 @@ export const getJobById = async (id: string) => {
   return job || null;
 };
 
-
 export const incrementRetryCount = async (id: string) => {
   return await db
     .update(jobs)
