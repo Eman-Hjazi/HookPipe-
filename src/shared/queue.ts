@@ -13,11 +13,20 @@ export const redisConnection = new IORedis({
 export const webhookQueue = new Queue("webhook-queue", {
   connection: redisConnection,
   defaultJobOptions: {
-    attempts: 3,
+    attempts: 5,
     backoff: {
       type: "exponential",
       delay: 1000,
     },
+    removeOnComplete: true,
+  },
+});
+
+export const deliveryQueue = new Queue("delivery-queue", {
+  connection: redisConnection,
+  defaultJobOptions: {
+    attempts: 5,
+    backoff: { type: "exponential", delay: 1000 },
     removeOnComplete: true,
   },
 });
