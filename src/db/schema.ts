@@ -11,6 +11,16 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
+import { InferSelectModel } from "drizzle-orm";
+
+export type Pipeline = InferSelectModel<typeof pipelines>;
+export type Subscriber = InferSelectModel<typeof subscribers>;
+export type DeliveryAttempt = InferSelectModel<typeof deliveryAttempts>;
+export type Job = InferSelectModel<typeof jobs>;
+export type PipelineWithSubscribers = typeof pipelines.$inferSelect & {
+  subscribers: (typeof subscribers.$inferSelect)[];
+};
+
 // --- 1. ENUMS
 export const actionTypeEnum = pgEnum("action_type", [
   "transform",
@@ -24,6 +34,7 @@ export const jobStatusEnum = pgEnum("job_status", [
   "completed",
   "failed",
   "retrying",
+  "skipped",
 ]);
 
 export const deliveryStatusEnum = pgEnum("delivery_status", [
@@ -51,7 +62,6 @@ export const subscribers = pgTable("subscribers", {
     .references(() => pipelines.id, { onDelete: "cascade" })
     .notNull(),
   url: text("url").notNull(),
-  isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -70,8 +80,6 @@ export const jobs = pgTable(
     processedData: jsonb("processed_data"),
     errorMessage: text("error_message"),
     retryCount: integer("retry_count").default(0).notNull(),
-    lockedAt: timestamp("locked_at"),
-    lockedBy: text("locked_by"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
     completedAt: timestamp("completed_at"),
@@ -83,20 +91,30 @@ export const jobs = pgTable(
   },
 );
 
-export const deliveryAttempts = pgTable("delivery_attempts", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  jobId: uuid("job_id").references(() => jobs.id, { onDelete: "cascade" }),
-  subscriberId: uuid("subscriber_id").references(() => subscribers.id, {
-    onDelete: "cascade",
-  }),
-  status: deliveryStatusEnum("status").notNull(),
-  responseCode: integer("response_code"),
-  durationMs: integer("duration_ms"),
-  errorType: text("error_type"),
-  attemptNumber: integer("attempt_number").default(1).notNull(),
-  nextAttemptAt: timestamp("next_attempt_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const deliveryAttempts = pgTable(
+  "delivery_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    jobId: uuid("job_id").references(() => jobs.id, { onDelete: "cascade" }),
+    subscriberId: uuid("subscriber_id").references(() => subscribers.id, {
+      onDelete: "cascade",
+    }),
+    status: deliveryStatusEnum("status").notNull(),
+    responseCode: integer("response_code"),
+    durationMs: integer("duration_ms"),
+    errorType: text("error_type"),
+    attemptNumber: integer("attempt_number").default(1).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => {
+    return {
+      jobIdIdx: index("delivery_job_id_idx").on(table.jobId),
+      subscriberIdIdx: index("delivery_subscriber_id_idx").on(
+        table.subscriberId,
+      ),
+    };
+  },
+);
 
 // --- 3. RELATIONS
 

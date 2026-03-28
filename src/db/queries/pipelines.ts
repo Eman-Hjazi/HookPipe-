@@ -7,11 +7,11 @@ import {
   UpdatePipelineInput,
 } from "../../api/validations/pipeline.schema.js";
 
-/**
- * Creates a new pipeline with its subscribers.
- * Requirement: A pipeline must connect a source, an action, and one or more subscribers.
- */
-// src/db/queries/pipelines.ts
+import {
+  ActionType,
+  ActionConfig,
+  PipelineWithSubscribers,
+} from "../../shared/types.js";
 
 export const createPipeline = async (data: CreatePipelineInput) => {
   return await db.transaction(async (tx) => {
@@ -20,8 +20,8 @@ export const createPipeline = async (data: CreatePipelineInput) => {
       .values({
         name: data.name,
         sourcePath: nanoid(12),
-        actionType: data.actionType,
-        actionConfig: data.actionConfig ?? {},
+        actionType: data.action.actionType as ActionType,
+        actionConfig: data.action.actionConfig as ActionConfig,
       })
       .returning();
 
@@ -39,10 +39,6 @@ export const createPipeline = async (data: CreatePipelineInput) => {
   });
 };
 
-/**
- * Retrieves all pipelines including their subscribers.
- * Supports the CRUD API requirement.
- */
 export const getAllPipelines = async () => {
   return await db.query.pipelines.findMany({
     with: {
@@ -51,32 +47,26 @@ export const getAllPipelines = async () => {
   });
 };
 
-/**
- * Finds a specific pipeline by its unique source path.
- * Used for "Webhook Ingestion".
- */
 export const getPipelineByPath = async (
   sourcePath: string,
   includeSubscribers = false,
-) => {
-  return await db.query.pipelines.findFirst({
+): Promise<PipelineWithSubscribers | null> => {
+  return (await db.query.pipelines.findFirst({
     where: eq(pipelines.sourcePath, sourcePath),
     with: includeSubscribers ? { subscribers: true } : undefined,
-  });
+  })) as PipelineWithSubscribers | null;
 };
 
-/**
- * Updates an existing pipeline and its subscribers.
- * Includes edge-case handling for empty subscriber lists.
- */
 export const updatePipeline = async (id: string, data: UpdatePipelineInput) => {
   return await db.transaction(async (tx) => {
     await tx
       .update(pipelines)
       .set({
         name: data.name,
-        actionType: data.actionType,
-        actionConfig: data.actionConfig,
+        ...(data.action && {
+          actionType: data.action.actionType as ActionType,
+          actionConfig: data.action.actionConfig as ActionConfig,
+        }),
         isActive: data.isActive,
         updatedAt: new Date(),
       })
@@ -93,9 +83,11 @@ export const updatePipeline = async (id: string, data: UpdatePipelineInput) => {
       const urlsToDelete = currentUrls.filter(
         (url) => !data.subscriberUrls!.includes(url),
       );
+
       const urlsToInsert = data.subscriberUrls.filter(
         (url) => !currentUrls.includes(url),
       );
+
       if (urlsToDelete.length > 0) {
         await tx
           .delete(subscribers)
@@ -106,6 +98,7 @@ export const updatePipeline = async (id: string, data: UpdatePipelineInput) => {
             ),
           );
       }
+
       if (urlsToInsert.length > 0) {
         const newRecords = urlsToInsert.map((url) => ({
           pipelineId: id,
@@ -119,10 +112,6 @@ export const updatePipeline = async (id: string, data: UpdatePipelineInput) => {
   });
 };
 
-/**
- * Deletes a pipeline and its associated subscribers.
- * Uses .returning() to verify if a record was actually deleted.
- */
 export const deletePipeline = async (id: string) => {
   const [deletedPipeline] = await db
     .delete(pipelines)
@@ -134,4 +123,16 @@ export const deletePipeline = async (id: string) => {
   }
 
   return { message: "Pipeline and its subscribers deleted successfully" };
+};
+
+export const getPipelineById = async (
+  id: string,
+  includeSubscribers = true,
+): Promise<PipelineWithSubscribers | null> => {
+  const result = await db.query.pipelines.findFirst({
+    where: eq(pipelines.id, id),
+    with: includeSubscribers ? { subscribers: true } : undefined,
+  });
+
+  return (result as PipelineWithSubscribers) || null;
 };
