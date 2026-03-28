@@ -39,7 +39,7 @@ export const filterAction = (
     case "less_than":
       return Number(payloadValue) < Number(value) ? payload : null;
     default:
-      return null;
+      throw new Error(`Invalid Filter Configuration: unknown operator ${operator}`);
   }
 };
 
