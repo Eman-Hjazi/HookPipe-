@@ -1,4 +1,5 @@
-import { transformAction, filterAction, enrichAction } from "./actions.js";
+// src/worker/processors/index.ts
+import { actionRegistry } from "./strategies/action.registry.js";
 import * as jobQueries from "../../db/queries/jobs.js";
 import { JsonPayload, Action } from "../../shared/types.js";
 
@@ -7,30 +8,15 @@ export const processAction = async (
   payload: JsonPayload,
   jobId: string,
 ): Promise<JsonPayload | null> => {
-  console.log(
-    `[Worker] ⚙️ Processing Job: ${jobId} | Action: ${action.actionType}`,
-  );
-
   try {
-    switch (action.actionType) {
-      case "transform":
-        return transformAction(payload, action.actionConfig);
+    const strategy = actionRegistry.get(action.actionType);
 
-      case "filter":
-        return filterAction(payload, action.actionConfig);
+    return await strategy.execute(payload, action.actionConfig, {
+      jobId,
+    });
 
-      case "enrich":
-        return enrichAction(payload, action.actionConfig, jobId);
-
-      default:
-        console.warn(`[Worker] ⚠️ Unsupported action.`);
-        return payload;
-    }
   } catch (error) {
-    console.error(`[Worker-Error] ❌ Logic failed for Job ${jobId}:`, error);
-
     await jobQueries.incrementRetryCount(jobId);
-
     throw error;
   }
 };

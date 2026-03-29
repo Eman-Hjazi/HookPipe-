@@ -2,55 +2,80 @@
 
 ![CI Status](https://github.com/Eman-Hjazi/HookPipe-/actions/workflows/ci.yml/badge.svg)
 
-**HookPipe** is a high-performance, scalable webhook-driven task processing pipeline designed to handle external events asynchronously. It functions as a simplified "Zapier-like" service, where inbound events trigger a series of processing steps before being delivered to multiple destinations with guaranteed reliability.
+HookPipe is a webhook-driven task processing pipeline designed to handle external events asynchronously.
 
+It functions as a simplified "Zapier-like" service, where inbound events trigger processing steps before being delivered to multiple destinations with retry handling.
 
 ## 🌟 Core Features
 
-* **Full CRUD API:** Comprehensive management of pipelines and subscribers via a strictly typed REST interface.
-* **High-Performance Ingestion:** Unique source URLs (secured via **12-character NanoIDs**) accept JSON payloads and immediately queue them in **Redis**, providing low-latency responses while offloading heavy lifting to background workers.
-* **Worker-Based Processing:** Extensible background execution handling **Transform** (key re-mapping), **Filter** (conditional drops), and **Enrich** (metadata injection) actions.
-* **Reliable Fan-out Delivery:** Processed events are distributed to multiple subscribers. The system utilizes a **fan-out pattern** where a single processed event generates independent job entries for every destination, ensuring a failure at one endpoint does not impact others.
+* Full CRUD API for managing pipelines and subscribers
+* Asynchronous webhook ingestion using Redis queues
+* Background worker for processing and delivery
+* Multiple processing actions:
 
+  * Transform (field mapping)
+  * Filter (conditional forwarding)
+  * Enrich (metadata injection)
+* Fan-out delivery to multiple subscribers
+* Retry logic with exponential backoff
+* Delivery attempt tracking
+* Docker-based setup
+* CI pipeline (lint, type-check, test)
 
-## 🏗️ Architecture & Design Decisions
+## 🏗️ Architecture & Design
 
-The system is built on a **Decoupled Service Architecture** to ensure a clean separation of concerns and system stability:
+HookPipe follows a decoupled architecture to separate concerns and simplify system behavior:
 
-* **API Service:** An Express-based application focused on pipeline management (CRUD) and ingestion. It validates incoming data using **Zod** and persists configurations to PostgreSQL.
-* **Worker Service:** An isolated background consumer that executes processing logic and handles delivery.
-* **Fan-out Architecture:** HookPipe manages the event lifecycle through a two-stage queuing process:
-    * **Action Processing:** A job is added to the `webhook-queue`. The worker executes the pipeline's logic.
-    * **Job Fan-out:** Upon successful processing, the system "fans out" by adding individual job entries to a single `delivery-queue` for every registered subscriber. This allows BullMQ to manage retries and state for each destination independently.
-* **Persistence (PostgreSQL/Drizzle):** Stores configurations, job states, and a detailed history of delivery attempts.
+* **API Service** — Handles ingestion and pipeline management
+* **Worker Service** — Processes jobs and handles delivery
+* **Redis (BullMQ)** — Manages job queues
+* **PostgreSQL (Drizzle ORM)** — Stores pipelines, jobs, and delivery attempts
 
-### **Why BullMQ/Redis?**
-This stack was chosen to provide professional-grade reliability. BullMQ provides native support for parent-child job dependencies, concurrency control, and sophisticated retry logic, which are critical when integrating with volatile third-party webhooks.
+## 👩🏻‍💻 Design Decisions
 
-## 🛡️ Reliability & Error Handling
+### 1. Queue-based Processing
 
-### **Exponential Backoff**
-To mitigate transient network issues or subscriber downtime, HookPipe implements a mandatory retry strategy for all delivery attempts:
-* **Attempts:** 5
-* **Backoff Type:** Exponential
-* **Initial Delay:** 1000ms
+Webhook handling is decoupled using a queue system (BullMQ + Redis).
 
-### **Delivery Attempt Tracking**
-Every request is audited in the `delivery_attempts` table. The system captures:
-* `response_code`: The HTTP status returned by the destination.
-* `duration_ms`: Total round-trip time for the delivery.
-* `error_type`: Detailed error strings for troubleshooting failed attempts.
+**Why?**
 
-### **Job Status States**
-The system tracks event progression through specific states:
-* `queued`: Job is waiting in Redis.
-* `processing`: Worker is currently executing logic.
-* `completed`: Successfully processed; `completedAt` timestamp is set.
-* `failed`: Retries exhausted or fatal error encountered.
-* `retrying`: Scheduled for a subsequent attempt following a failure.
+* Prevents blocking API requests
+* Improves scalability under load
+* Enables retry and failure handling
 
+### 2. Fan-out Architecture
 
-## 📊 System Flow Diagram
+Each processed webhook is delivered independently to multiple subscribers.
+
+**Why?**
+
+* Supports multiple integrations per pipeline
+* Isolates failures (one subscriber failing doesn’t affect others)
+* Matches real-world webhook systems
+
+### 3. Strategy Pattern for Actions
+
+Processing logic is implemented using the Strategy Pattern.
+
+Each action (Transform, Filter, Enrich) is a separate strategy with a shared interface.
+
+**Why?**
+
+* Easy to extend (add new actions without modifying existing code)
+* Improves testability
+* Keeps logic modular and clean
+
+### 4. Separation of Processing and Delivery
+
+Processing the webhook and delivering results are handled as separate steps.
+
+**Why?**
+
+* Clearer responsibility boundaries
+* Better failure handling
+* Easier debugging and monitoring
+
+## 🔄 System Flow
 
 ```mermaid
 graph TD
@@ -97,64 +122,95 @@ graph TD
     DW -->|11. Log Final Status| DB
 ```
 
-## ⚙️ Processing Actions
+## 🛡️ Reliability
 
-HookPipe supports three distinct action types that modify or filter the payload before delivery :
-1.  **Transform:** Re-maps input fields to match destination requirements (e.g., renaming fields).
-2.  **Filter:** Conditional logic (equals, contains, etc.) that decides if the payload should proceed.
-3.  **Enrich:** Appends additional metadata (Job ID, timestamps) to the payload for better traceability.
+* Jobs are processed asynchronously
+* Failed deliveries are retried using exponential backoff
+* Delivery attempts are stored for tracking and debugging
 
-## 🔌 API Documentation (OpenAPI Specs)
+Retry configuration:
 
-### 1. Webhook Ingestion
--   `POST /api/ingest/:sourcePath`: Receives JSON data and returns `202 Accepted`.
+* Attempts: 5
+* Backoff: Exponential
+* Initial delay: 1000ms
 
-### 2. Pipeline Management
--   `POST /api/pipelines`: Create a pipeline with actions and subscribers.
--   `GET /api/pipelines`: List all active pipelines.
--   `PATCH /api/pipelines/:id`: Smart-sync subscribers and update configurations.
+## 📡 API Endpoints
 
-### 3. Monitoring (Observability)
--   `GET /api/jobs/:id`: Query real-time status and processed results.
--   `GET /api/jobs/:id/attempts`: Access the full retry history and delivery logs.
+### Pipelines
+
+* `POST /api/pipelines`
+* `GET /api/pipelines`
+* `GET /api/pipelines/:id`
+* `PATCH /api/pipelines/:id`
+* `DELETE /api/pipelines/:id`
+
+### Webhook Ingestion
+
+* `POST /api/ingest/:sourcePath`
+
+### Jobs
+
+* `GET /api/jobs/:id`
+* `GET /api/jobs/:id/attempts`
 
 ## 📂 Project Structure
 
-```text
-src/
-├── api/             # Controllers, Routes, and Zod Validations
-├── db/              # Drizzle Schemas and Data Access Objects (Queries)
-├── worker/          # Background Processors (Transform/Filter/Enrich)
-└── shared/          # Redis connection and Shared BullMQ Queues
 ```
+src/
+├── api/        # Controllers, routes, validation
+├── db/         # Database schema and queries
+├── worker/     # Background processing and strategies
+└── shared/     # Queue setup and shared utilities
+```
+
 
 ## 🚀 Getting Started
 
-The entire stack runs via **Docker Compose** for a "works on first try" experience.
+### 1. Setup environment
 
-### 1. Environment Configuration
 ```bash
 cp .env.example .env
 ```
 
-### 2. Running the Service
+### 2. Run the project
+
 ```bash
 docker compose up --build
 ```
-*API is available at `http://localhost:3000`.*
 
-### 3. Database Studio
-To monitor jobs and delivery attempts in real-time:
-```bash
-npx drizzle-kit studio
+API will be available at:
+
+```
+http://localhost:3000
 ```
 
-
 ## 🛠️ Tech Stack
--   **Runtime:** Node.js (v22).
--   **Language**  TypeScript (Strict mode).
--   **Database:** PostgreSQL with Drizzle ORM  & Redis.
--   **Processing:** BullMQ (Job Queuing) & Axios (Delivery).
-- **Validation** Zod (Type-safe request/payload validation).
--   **CI/CD:** GitHub Actions (Lint, Type Check, Build).
 
+* Node.js + TypeScript
+* Express
+* PostgreSQL
+* Redis + BullMQ
+* Drizzle ORM
+* Zod
+* Vitest
+* GitHub Actions
+
+## 🔮 Future Improvements
+
+* Idempotency handling to prevent duplicate processing
+* Dead Letter Queue (DLQ) for failed jobs
+* Webhook signature verification
+* Authentication and authorization
+* Rate limiting
+* Structured logging and monitoring
+
+
+## 🎯 Project Goal
+
+This project demonstrates how to build a simplified event-driven system that:
+
+* Receives events
+* Processes them asynchronously
+* Delivers results reliably
+
+With a focus on clean architecture and extensibility.
