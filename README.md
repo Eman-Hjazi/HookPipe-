@@ -122,6 +122,19 @@ graph TD
     DW -->|11. Log Final Status| DB
 ```
 
+## Processing Flow
+
+1. Webhook is received at `/api/ingest/:sourcePath`
+2. Pipeline is resolved and validated
+3. Job is added to the queue
+4. Worker processes the job:
+
+   * Executes action (transform / filter / enrich)
+   * Skips if filtered out
+5. Result is delivered to subscribers (fan-out)
+6. Failed deliveries are retried automatically
+7. All attempts are stored in the database
+
 ## 🛡️ Reliability
 
 * Jobs are processed asynchronously
