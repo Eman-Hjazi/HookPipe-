@@ -148,6 +148,8 @@ Retry configuration:
 * Initial delay: 1000ms
 
 ## 📡 API Endpoints
+You can explore and test the API endpoints interactively via the **API Hub / Documentation**:
+👉 [HookPipe API Documentation](https://x37p5ivvxe.apidog.io/)
 
 ### Pipelines
 
